@@ -7,7 +7,7 @@
 import Cocoa
 import WebKit
 
-let appVersion = "1.0.0"
+let appVersion = "1.1.0"
 let tinyVocaGitHub = URL(string: "https://github.com/n4ze3m/tiny-voca")!
 let tinyVocaWeights = URL(string: "https://huggingface.co/n4ze3m/tiny-voca")!
 let tinyVocaDataset = URL(string: "https://huggingface.co/datasets/n4ze3m/tiny-voca")!
@@ -35,7 +35,7 @@ func htmlEscape(_ s: String) -> String {
     s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKDownloadDelegate, WKUIDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKDownloadDelegate, WKUIDelegate, WKScriptMessageHandler {
     var window: NSWindow!
     var web: WKWebView!
     var server: Process?
@@ -57,6 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         buildMenu()
         let cfg = WKWebViewConfiguration()
         cfg.mediaTypesRequiringUserActionForPlayback = []   // "Speak live" chains audio without a click each time
+        cfg.userContentController.add(self, name: "save")   // "Save WAV…" posts {name, b64} here
         web = WKWebView(frame: .zero, configuration: cfg)
         web.navigationDelegate = self
         web.uiDelegate = self
@@ -232,6 +233,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let panel = NSSavePanel()
         panel.nameFieldStringValue = suggestedFilename.isEmpty ? "tiny-voca.wav" : suggestedFilename
         panel.beginSheetModal(for: window) { r in completionHandler(r == .OK ? panel.url : nil) }
+    }
+    // "Save WAV…": the page hands over the audio (base64) and the app shows the Save panel.
+    func userContentController(_ ucc: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "save", let body = message.body as? [String: Any],
+              let b64 = body["b64"] as? String, let data = Data(base64Encoded: b64) else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = (body["name"] as? String) ?? "tiny-voca.wav"
+        panel.allowedFileTypes = ["wav"]
+        panel.beginSheetModal(for: window) { r in
+            guard r == .OK, let url = panel.url else { return }
+            do { try data.write(to: url) } catch {
+                let a = NSAlert(); a.messageText = "Could not save the file"; a.informativeText = error.localizedDescription; a.runModal()
+            }
+        }
+    }
+    // "Open text file…": the web view's file input needs the app to show the Open panel.
+    func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.message = "Choose a plain text file to load into the text box"
+        panel.beginSheetModal(for: window) { r in completionHandler(r == .OK ? panel.urls : nil) }
     }
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         if let url = action.request.url { NSWorkspace.shared.open(url) }

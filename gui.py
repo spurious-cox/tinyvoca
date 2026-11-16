@@ -320,6 +320,9 @@ li.now{background:color-mix(in srgb,var(--acc) 15%,transparent)}
    <button id="live" title="The way to test voices actively: speaks the text in short pieces, and moving any slider (or changing the voice or seed) while it speaks re-speaks the current piece at once with the new setting.">Speak live</button>
    <button id="both" title="Speaks the text in every selected voice in turn, in the order selected. Select two or more voices first (&#8984;-click adds a voice). If &quot;Say I am&hellip; first&quot; is checked, each voice introduces itself before it speaks.">Compare</button>
    <button id="stop" title="Stops speaking right away.">Stop</button>
+   <button id="save" title="Saves the text, spoken by the first voice you selected with the current settings, as a WAV audio file. (The spoken &quot;I am&hellip;&quot; introduction is not included.)">Save WAV&hellip;</button>
+   <button id="open" title="Loads the text of a plain text file (.txt, .md and the like, up to 1 MB) into the text box, replacing what is there.">Open text file&hellip;</button>
+   <input type="file" id="file" accept=".txt,.md,.markdown,.text,.rtf,text/*" hidden>
    <span id="count" class="mut"></span>
   </div>
   <div id="status" class="mut"></div>
@@ -340,7 +343,7 @@ async function synth(text,voice){
   saveSettings();   // the voice and settings last used become the defaults next time
   const r=await fetch('/speak',{method:'POST',body:JSON.stringify(req(text,voice))});return r.json();
 }
-function setBusy(b,msg){busy=b;for(const id of ['go','live','both'])$(id).disabled=b;if(!b)for(const id of ['go','live','both'])$(id).classList.remove('on');if(msg!==undefined)status(msg)}
+function setBusy(b,msg){busy=b;for(const id of ['go','live','both','save','open'])$(id).disabled=b;if(!b)for(const id of ['go','live','both'])$(id).classList.remove('on');if(msg!==undefined)status(msg)}
 function mark(id){$(id).classList.add('on')}
 function flash(id){mark(id);setTimeout(()=>$(id).classList.remove('on'),700)}
 function status(m,c){$('status').textContent=m;$('status').className=c||'mut'}
@@ -415,6 +418,28 @@ $('both').onclick=async()=>{
   const sel=picked();
   if(sel.length<2){status('Cmd-click two or more voices in the list to compare them.','err');return}
   stopFlag=false;setBusy(true);mark('both');await run($('text').value,sel);setBusy(false)};
+function b64ToBlob(b64){const bin=atob(b64),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:'audio/wav'})}
+$('save').onclick=async()=>{
+  const t=$('text').value.trim();
+  if(!t){status('Type some text first.','err');return}
+  const v=firstVoice();
+  stopFlag=false;setBusy(true);mark('save');status('Making '+v+' for the file… be patient on long text');
+  const d=await synth(t,v);
+  setBusy(false);
+  if(d.error){status(d.error,'err');return}
+  const name='tiny-voca-'+v.replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.wav';
+  const h=window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.save;
+  if(h){h.postMessage({name,b64:d.wav});status('Choose where to save '+name+'.','ok')}   // the app shows its Save panel
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(b64ToBlob(d.wav));a.download=name;document.body.append(a);a.click();a.remove();status('Saved '+name+' ('+d.seconds+' s).','ok')}
+};
+$('open').onclick=()=>$('file').click();
+$('file').onchange=async()=>{
+  const f=$('file').files[0];$('file').value='';
+  if(!f)return;
+  if(f.size>1048576){status(f.name+' is larger than 1 MB.','err');return}
+  const txt=await f.text();
+  $('text').value=txt;upd();saveSettings();status('Loaded '+f.name+'.','ok');
+};
 $('stop').onclick=()=>{flash('stop');stopFlag=true;if(player){player.pause();player.dispatchEvent(new Event('ended'));player.onended&&player.onended()}status('Stopped.')};
 const ids=['speed','pitch','range','seed'];
 let order=[];   // selected voices, in the order they were selected

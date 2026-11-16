@@ -20,8 +20,13 @@ tiny-voca is the work of Muhammed Nazeem ([n4ze3m](https://github.com/n4ze3m)): 
 - **Speak** makes the whole audio and plays it.
 - **Speak live** speaks in short pieces, so moving a slider, or changing the voice or the seed, while it speaks changes what you hear within a second or two. This is the way to test voices actively.
 - **Compare** speaks the same text in every voice you selected, in the order you selected them. With "Say "I am <voice>" first" checked, each voice introduces itself before it speaks, so you always know whose turn it is.
+- **Save WAV…** saves the text, spoken by the first voice you selected, as a WAV audio file. **Open text file…** loads a plain text file (up to 1 MB) into the text box.
 - **Controls:** Speed (all voices), and Pitch shift, Pitch range and Seed (tiny-voca voices only; system voices ignore them). Hover over any control for an explanation.
 - **Remembers everything:** your text, the voices you chose, the sliders and the voice sets come back the next time you open the app.
+
+### What is and isn't from tiny-voca
+
+TinyVoca covers tiny-voca's speaking side: both voices, speed, pitch shift, pitch range, seed, long text read sentence by sentence, text from a file, and WAV output (the same things its `infer` command does). It does not include tiny-voca's ONNX export, its training and evaluation tools, or its browser demo; see the [tiny-voca repository](https://github.com/n4ze3m/tiny-voca) for those.
 
 ### Choosing voices
 
