@@ -7,7 +7,7 @@
 import Cocoa
 import WebKit
 
-let appVersion = "1.1.0"
+let appVersion = "1.1.1"
 let tinyVocaGitHub = URL(string: "https://github.com/n4ze3m/tiny-voca")!
 let tinyVocaWeights = URL(string: "https://huggingface.co/n4ze3m/tiny-voca")!
 let tinyVocaDataset = URL(string: "https://huggingface.co/datasets/n4ze3m/tiny-voca")!
